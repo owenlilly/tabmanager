@@ -4,7 +4,7 @@ import assert from 'assert';
 import CustomerModel from '../models/Customer';
 import SaleModel from '../models/Sale';
 import TabModel from '../models/Tab';
-import tms from '../services/TabManagerService';
+import tms, { LineItem } from '../services/TabManagerService';
 import customerRepo from '../repositories/CustomerRepository';
 
 describe('TabManagerService',() => {
@@ -98,19 +98,10 @@ describe('TabManagerService',() => {
 
     describe('.debitCustomerTab()', () => {
         it("should reduce customers tab balance by sale total", (done) => {
-            const SaleItem = (name, price, amount, discount) => {
-                return {
-                    name: name,
-                    price: price,
-                    amount: amount || 1,
-                    discount: discount || 0
-                };
-            }
-
             const lineItems = [
-                new SaleItem('item1', 10, 3),
-                new SaleItem('item2', 12, 3, 3),
-                new SaleItem('item3', 7)
+                new LineItem('item1', 10, 3),
+                new LineItem('item2', 12, 3, 3),
+                new LineItem('item3', 7)
             ];
 
             tms.debitCustomerTab(CUSTOMER._id, lineItems)
