@@ -16,8 +16,6 @@ export default class BaseRepository {
             this.model.findById(id, (err, result) => {
                 if(err){
                     s.onError(err);
-                } else if(!result){
-                    s.onError(new ErrNotFound());
                 } else {
                     s.onNext(result);
                 }

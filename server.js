@@ -6,7 +6,9 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import expressJwt from 'express-jwt';
+import customerRepo from './repositories/CustomerRepository';
 import clerkService from './services/ClerkService';
+import tms, { LineItem } from './services/TabManagerService';
 
 mongoose.connect(process.env.MONGO_URL);
 mongoose.Promise = global.Promise;
@@ -81,6 +83,76 @@ app.get('/login', (req, res) => {
         }
 
         res.status(statusCode).json({error: err.message});
+    });
+});
+
+app.post('/customer/add', (req, res) => {
+    customerRepo.save(req.body)
+    .subscribe(c => {
+        res.json(c);
+    }, err => {
+        res.status(500).json({error: err.message});
+    })
+});
+
+app.post('/tab/credit', (req, res) => {
+    const customerId = req.body.customerId;
+    let amount = req.body.amount;
+
+    if(typeof amount !== 'number' || !(amount instanceof Number)){
+        amount = parseFloat(amount);
+    }
+
+    if(amount < 0){
+        res.status(400).json({error: 'Amount cannot be negative'})
+        return;
+    }
+
+    tms.creditCustomerTab(customerId, amount).subscribe(tab => {
+        res.json({
+            available: tab.balance
+        });
+    }, err => {
+        res.status(500).json({error: err.message});
+    });
+});
+
+app.post('/tab/debit', (req, res) => {
+    const customerId = req.body.customerId;
+    const items = req.body.items;
+    let errNameCount = 0;
+    let errPriceCount = 0;
+
+    const lineItems = items.map(item => {
+        if(!item.name || item.name.trim() === ''){
+            errNameCount += 1;
+        }
+        if(!item.price || item.price <= 0 || item.price.trim() === ''){
+            errPriceCount += 1;
+        }
+
+        const errors = [];
+        if(errNameCount > 0){
+            errors.push(`${errNameCount} item name${errNameCount > 1 ? 's':''} missing`);
+        }
+
+        if(errPriceCount > 0){
+            errors.push(`${errPriceCount} item price${errPriceCount > 1 ? 's':''} missing`);
+        }
+
+        if(errors.length > 0){
+            res.status(400).json({error: errors.join(', ')});
+        }
+
+        return new LineItem(item.name, item.price, item.amount, item.discount);
+    });
+
+    tms.debitCustomerTab(customerId, lineItems).subscribe(tab => {
+        res.json({
+            available: tab.balance
+        });
+    }, err => {
+        res.status(500).json({error: err.message});
     });
 });
 
